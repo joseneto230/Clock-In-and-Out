@@ -38,12 +38,32 @@ def sum_bank_hours():
                 total_bank += bank_time  # Sum up all bank hours
             except Exception as e:
                 print(f"Error parsing bank hour at index {idx}: {value} -> {e}")
+    # Check if "TOTAL" row exists
+    total_bank = negative_hours(total_bank)
+
+    total_index = df[df["Date"] == "TOTAL"].index
+    if not total_index.empty:
+        df.loc[total_index[0], "Hours Bank"] = total_bank # Update existing TOTAL row
+    else:
+        new_row = pd.DataFrame([{
+            "Date": "TOTAL",
+            "Clock-in": "",
+            "Interval Start": "",
+            "Interval End": "",
+            "Clock-out": "",
+            "Status": "Summary",
+            "Work Hours Needed": "",
+            "Total Worked Hours": "",
+            "Hours Bank": total_bank
+        }])
+        df = pd.concat([df, new_row], ignore_index=True)  # Append TOTAL row at the bottom
+    
 
     # Store the total sum in the last row of the "Hours Bank" column
-    last_index = len(df) - 1  # Find the last row index
-    df.at[last_index, "Hours Bank"] = str(total_bank)  # Convert to string before storing
-
+    df.to_excel(file_name, index=False)
+    df = pd.read_excel(file_name)  # Reload file to confirm updates
     print(f"Total Bank Hours: {total_bank}")  # Display result
+
 def negative_hours(hours):
     if hours.total_seconds() < 0:
         total_seconds = abs(hours.total_seconds())  # Get absolute value
@@ -130,12 +150,15 @@ def register_time():
     today = datetime.now().strftime("%d-%m")
     current_time = datetime.now().strftime("%H:%M:%S")
 
+# Find "TOTAL" row index
+    total_index = df[df["Date"] == "TOTAL"].index
+
     # Find today's entry
     entry_index = df[df["Date"] == today].index
 
     if entry_index.empty:
         # New entry for today
-        new_data = {
+        new_data = pd.DataFrame([{
             "Date": today,
             "Clock-in": current_time,
             "Interval Start": pd.NA,
@@ -144,9 +167,14 @@ def register_time():
             "Status": "Working",
             "Work Hours Needed": "08:00:00",  # Store as string for parsing
             "Total Worked Hours": pd.NA,
-            "Hours Bank": "0:00:00" #store as a timedelta string.
-        }
-        df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+            "Hours Bank": "0:00:00"  # Store as a timedelta string.
+        }])
+        
+        if not total_index.empty:
+            total_position = total_index[0]
+            df = pd.concat([df.iloc[:total_position], new_data, df.iloc[total_position:]], ignore_index=True)
+        else:
+            df = pd.concat([df, new_data], ignore_index=True)
     else:
         idx = entry_index[0]
         if pd.isna(df.at[idx, "Clock-in"]):
