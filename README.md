@@ -5,4 +5,4 @@
 - [ ] Add holydays 
 - [ ] Add a GUI for easy acsses, like add a calendar to chose holydays
 - [ ] Set up working range for the day that are worked and not worked
-- [ ] Add simulator to create .xlsx file for testing
+- [x] Add simulator to create .xlsx file for testing
