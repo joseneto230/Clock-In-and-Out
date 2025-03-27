@@ -18,6 +18,66 @@ df = pd.read_excel(file_name)
 df['Total Worked Hours'] = df['Total Worked Hours'].astype(object)
 df['Hours Bank'] = df['Hours Bank'].astype(object) #added this line
 
+def sum_bank_hours():
+    global df  # Ensure access to the DataFrame
+
+    # Convert "Hours Bank" column values into timedelta objects
+    total_bank = timedelta(0)
+    
+    for idx, value in df["Hours Bank"].items():
+        if isinstance(value, str) and value.strip():  # Ensure it's a non-empty string
+            try:
+                bank_time = parse_hours_sum(value)  # Convert to timedelta
+                
+                # Debugging print to check types
+                print(f"Index: {idx}, Bank Time: {bank_time}, Type: {type(bank_time)}")
+                
+                if not isinstance(bank_time, timedelta):
+                    raise TypeError(f"bank_time is not timedelta at index {idx}: {bank_time}")
+
+                total_bank += bank_time  # Sum up all bank hours
+            except Exception as e:
+                print(f"Error parsing bank hour at index {idx}: {value} -> {e}")
+
+    # Store the total sum in the last row of the "Hours Bank" column
+    last_index = len(df) - 1  # Find the last row index
+    df.at[last_index, "Hours Bank"] = str(total_bank)  # Convert to string before storing
+
+    print(f"Total Bank Hours: {total_bank}")  # Display result
+def negative_hours(hours):
+    if hours.total_seconds() < 0:
+        total_seconds = abs(hours.total_seconds())  # Get absolute value
+        negative_time = str(timedelta(seconds=total_seconds))  # Convert to HH:MM:SS
+        negative_time = "-" + negative_time  # Manually add the negative sign
+        hours = negative_time
+    else:
+        hours = str(hours)
+    return hours
+
+def parse_hours_sum(hours_str):
+    """Parses 'HH:MM:SS' or 'X hours' string into timedelta, handling negative times."""
+    try:
+        # Check for negative sign
+        negative = False
+        if hours_str.startswith("-"):
+            negative = True
+            hours_str = hours_str[1:]  # Remove negative sign for parsing
+        
+        # Try parsing 'HH:MM:SS' format
+        time_obj = datetime.strptime(hours_str, '%H:%M:%S').time()
+        parsed_time = timedelta(hours=time_obj.hour, minutes=time_obj.minute, seconds=time_obj.second)
+        
+        return -parsed_time if negative else parsed_time  # Reapply negativity if needed
+    except ValueError:
+        # If 'HH:MM:SS' parsing fails, try 'X hours' format
+        try:
+            hours = float(hours_str.split()[0])
+            parsed_time = timedelta(hours=hours)
+            return -parsed_time if negative else parsed_time
+        except (ValueError, IndexError):
+            print(f"Error: Invalid hours string '{hours_str}'. Returning 0 hours.")
+            return timedelta(0)
+        
 def parse_hours(hours_str):
     """Parses 'HH:MM:SS' or 'X hours' string into timedelta, handling errors."""
     try:
@@ -51,13 +111,7 @@ def bank(work_duration, idx):
     bank_hours = work_duration - hours_need  
 
     # Normalize negative timedelta format
-    if bank_hours.total_seconds() < 0:
-        total_seconds = abs(bank_hours.total_seconds())  # Get absolute value
-        negative_time = str(timedelta(seconds=total_seconds))  # Convert to HH:MM:SS
-        negative_time = "-" + negative_time  # Manually add the negative sign
-        bank_hours = negative_time
-    else:
-        bank_hours = str(bank_hours)
+    bank_hours = negative_hours(bank_hours)
 
     print(f"Bank Hours: {bank_hours}")
     df.at[idx, "Hours Bank"] = bank_hours  # Store properly formatted value
@@ -73,7 +127,7 @@ def register_time():
     df['Interval End'] = df['Interval End'].astype(object)
     df['Clock-out'] = df['Clock-out'].astype(object)
 
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now().strftime("%d-%m")
     current_time = datetime.now().strftime("%H:%M:%S")
 
     # Find today's entry
@@ -117,7 +171,8 @@ def register_time():
 
             work_duration = (end_time - start_time) - (interval_end - interval_start)
             df.at[idx, "Total Worked Hours"] = str(work_duration)
-            bank(work_duration, idx)
+
+            bank(work_duration, idx) #Call function to calculate bank hours
 
         if pd.notna(df.at[idx, "Clock-in"]) and pd.notna(df.at[idx, "Interval Start"]) and pd.isna(df.at[idx, "Interval End"]):
             fmt = "%H:%M:%S"
@@ -125,10 +180,12 @@ def register_time():
             interval_start = datetime.strptime(df.at[idx, "Interval Start"], fmt) if pd.notna(df.at[idx, "Interval Start"]) else start_time
             work_duration = (interval_start - start_time)
             df.at[idx, "Total Worked Hours"] = str(work_duration)
-            bank(work_duration, idx)
+
+            bank(work_duration, idx)#Call function to calculate bank hours
 
     df.to_excel(file_name, index=False)
     print("Time registered successfully!")
 
 if __name__ == "__main__":
     register_time()
+    sum_bank_hours()
