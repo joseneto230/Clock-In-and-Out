@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 # Define the Excel file name based on the year
 current_year = datetime.now().year  # cria uma variavel com o valor do ano atual
 curren_month = datetime.now().strftime("%B")# cria uma variavel com o valor do mês atual
-file_name = f"{current_year}_SSA.xlsx"  #cria uma variavel com o nome e o tipo do arquivo a ser criado nesse caso excel com o ano e o nome da empresa
+file_name = f"{current_year}_SSA.csv"  #cria uma variavel com o nome e o tipo do arquivo a ser criado nesse caso excel com o ano e o nome da empresa
 
 # Check if file exists, if not create it
 def initialize_file():
@@ -14,10 +14,10 @@ def initialize_file():
             "Date", "Clock-in", "Interval Start", "Interval End", "Clock-out", "Status", 
             "Work Hours Needed", "Total Worked Hours", "Hours Bank"
         ])  # Formatação da primeira linha sendo cada objeto uma coluna
-        df.to_excel(file_name,sheet_name = curren_month, index=False) # Cria o arquivo o .xlsx
+        df.to_csv(file_name, index=False) # cria o arquivo 
 
-def load_excel(): # converte todos os valores para strings
-    df = pd.read_excel(file_name)
+def load_excel():
+    df = pd.read_csv(file_name)
     df["Total Worked Hours"] = df["Total Worked Hours"].astype(object)
     df["Hours Bank"] = df["Hours Bank"].astype(object)
     df["Clock-in"] = df["Clock-in"].astype(object)
@@ -26,10 +26,10 @@ def load_excel(): # converte todos os valores para strings
     df["Clock-out"] = df["Clock-out"].astype(object)
     return df
 
-def save_excel(df): # salva o arquivo
-    df.to_excel(file_name, sheet_name = curren_month, index=False)
+def save_excel(df):
+    df.to_csv(file_name, index=False)
 
-def parse_hours(hours_str): # Faz a conversão das horas para timedelta
+def parse_hours(hours_str):
     try:
         time_obj = datetime.strptime(hours_str, '%H:%M:%S').time()
         return timedelta(hours=time_obj.hour, minutes=time_obj.minute, seconds=time_obj.second)
@@ -40,14 +40,14 @@ def parse_hours(hours_str): # Faz a conversão das horas para timedelta
         except (ValueError, IndexError):
             return timedelta(0)
 
-def parse_hours_sum(hours_str): # Faz a conversão das horas negativas
+def parse_hours_sum(hours_str):
     negative = hours_str.startswith("-")
     if negative:
         hours_str = hours_str[1:]
     parsed_time = parse_hours(hours_str)
     return -parsed_time if negative else parsed_time
 
-def negative_hours(hours): #Analisa se as horas são negativas ou não
+def negative_hours(hours):
     return "-" + str(timedelta(seconds=abs(hours.total_seconds()))) if hours.total_seconds() < 0 else str(hours)
 
 def sum_bank_hours():
